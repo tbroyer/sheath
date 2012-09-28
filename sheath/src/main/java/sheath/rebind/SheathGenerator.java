@@ -26,7 +26,6 @@ import com.google.gwt.core.ext.typeinfo.JMethod;
 import com.google.gwt.core.ext.typeinfo.JPrimitiveType;
 import com.google.gwt.core.ext.typeinfo.JType;
 import com.google.gwt.core.ext.typeinfo.TypeOracle;
-import com.google.gwt.core.shared.GWT;
 import com.google.gwt.user.rebind.ClassSourceFileComposerFactory;
 import com.google.gwt.user.rebind.SourceWriter;
 
@@ -96,35 +95,57 @@ public class SheathGenerator extends IncrementalGenerator {
     factory.addImplementedInterface(typeName);
     SourceWriter sw = factory.createSourceWriter(context, pw);
 
-    // Constructor
-    sw.println("public %s() {", simpleSourceName);
-    sw.indent();
-    sw.println("super(");
-    sw.indent();
-    sw.println("new AbstractLinker() {");
+    // Linker
+    sw.println("private static class Linker extends AbstractLinker {");
     sw.indent();
     sw.println("@java.lang.Override");
     sw.println("protected native %1$s<?> createAtInjectBinding(%2$s key, %2$s className) /*-{",
         Binding.class.getCanonicalName(), String.class.getCanonicalName());
     sw.indent();
     sw.println("switch (className) {");
+    LinkedHashMap<String, String> factoryMethodsToGenerate = new LinkedHashMap<String, String>();
     for (JClassType type : oracle.getTypes()) {
-      if (type.getName().endsWith("$InjectAdapter")) {
+      // XXX: workaround for http://code.google.com/p/google-web-toolkit/issues/detail?id=6799
+      // We really should use type.getName().endsWith("$InjectAdapter") but GWT makes a JClassType
+      // with name "InjectAdapter", thinking it's a nested class, and we lose the part before the
+      // dollar. So in the mean time, look for the InjectAdapter in the classpath FOR EACH CLASS,
+      // and we additionally generate a non-JSNI class to instantiate it, so that processing of the
+      // class name is done by JDT rather than GWT's TypeOracle.
+      boolean found;
+      try {
+        Class.forName(type.getQualifiedBinaryName() + "$InjectAdapter", false, Thread.currentThread().getContextClassLoader());
+        found = true;
+      } catch (Throwable t) {
+        found = false;
+      }
+      if (found /*&& type.isAssignableTo(oracle.findType(Binding.class.getCanonicalName()))*/) {
         String name = type.getQualifiedSourceName();
-        sw.println("case '%s': return @%s::new()();",
-            name.substring(0, name.length() - "$InjectAdapter".length()),
-            name);
+        String factoryName = "create_" + name.replace('.', '_') + "_InjectAdapter";
+        factoryMethodsToGenerate.put(name + "$InjectAdapter", factoryName);
+        sw.println("case '%s': return this.@%s.Linker::%s()();", name, factory.getCreatedClassName(), factoryName);
       }
     }
     sw.println("default: return null;");
     sw.println("}");
     sw.outdent();
     sw.println("}-*/;");
+    for (Map.Entry<String, String> factoryMethodToGenerate : factoryMethodsToGenerate.entrySet()) {
+      sw.println("private %s %s() {", factoryMethodToGenerate.getKey(), factoryMethodToGenerate.getValue());
+      sw.indentln("return new %s();", factoryMethodToGenerate.getKey());
+      sw.println("}");
+    }
     sw.outdent();
     sw.print("}");
+
+    // Constructor
+    sw.println();
+    sw.println("public %s() {", simpleSourceName);
+    sw.indent();
+    sw.print("super(new Linker()");
+    sw.indent();
     for (Class<?> module : moduleClasses) {
       sw.println(",");
-      sw.print("%s.create(%s$ModuleAdapter)", GWT.class.getCanonicalName(), module.getCanonicalName());
+      sw.print("new %s$ModuleAdapter()", module.getCanonicalName());
     }
     sw.println(");");
     sw.outdent();
