@@ -126,7 +126,7 @@ public abstract class Linker {
    *   <li>Injections of other types will use the injectable constructors of those classes.
    * </ul>
    */
-  private Binding<?> createJitBinding(String key, Object requiredBy) throws ClassNotFoundException {
+  private Binding<?> createJitBinding(String key, Object requiredBy) {
     String builtInBindingsKey = Keys.getBuiltInBindingsKey(key);
     if (builtInBindingsKey != null) {
       return new BuiltInBinding<Object>(key, requiredBy, builtInBindingsKey);
@@ -151,8 +151,7 @@ public abstract class Linker {
    * Returns a binding that uses {@code @Inject} annotations, or null if no such
    * binding can be created.
    */
-  protected abstract Binding<?> createAtInjectBinding(String key, String className)
-      throws ClassNotFoundException;
+  protected abstract Binding<?> createAtInjectBinding(String key, String className);
 
   /**
    * Returns the binding if it exists immediately. Otherwise this returns

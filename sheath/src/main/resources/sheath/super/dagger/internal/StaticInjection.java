@@ -27,45 +27,17 @@ import javax.inject.Inject;
  * @author Jesse Wilson
  */
 public final class StaticInjection {
-  private final Field[] fields;
-  private Binding<?>[] bindings;
-
-  private StaticInjection(Field[] fields) {
-    this.fields = fields;
-  }
+  // TODO: emulate for GWT
 
   public static StaticInjection get(Class<?> c) {
-    List<Field> fields = new ArrayList<Field>();
-    for (Field field : c.getDeclaredFields()) {
-      if (field.getAnnotation(Inject.class) == null
-          || !Modifier.isStatic(field.getModifiers())) {
-        continue;
-      }
-      field.setAccessible(true);
-      fields.add(field);
-    }
-    if (fields.isEmpty()) {
-      throw new IllegalArgumentException("No static injections: " + c.getName());
-    }
-    return new StaticInjection(fields.toArray(new Field[fields.size()]));
+    throw new UnsupportedOperationException();
   }
 
   public void attach(Linker linker) {
-    bindings = new Binding<?>[fields.length];
-    for (int i = 0; i < fields.length; i++) {
-      Field field = fields[i];
-      String key = Keys.get(field.getGenericType(), field.getAnnotations(), field);
-      bindings[i] = linker.requestBinding(key, field);
-    }
+    throw new UnsupportedOperationException();
   }
 
   public void inject() {
-    try {
-      for (int f = 0; f < fields.length; f++) {
-        fields[f].set(null, bindings[f].get());
-      }
-    } catch (IllegalAccessException e) {
-      throw new AssertionError(e);
-    }
+    throw new UnsupportedOperationException();
   }
 }

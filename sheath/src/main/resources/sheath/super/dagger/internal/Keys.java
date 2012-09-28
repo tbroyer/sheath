@@ -40,127 +40,12 @@ import javax.inject.Qualifier;
  * and last types.
  */
 public final class Keys {
-  private static final String PROVIDER_PREFIX = Provider.class.getName() + "<";
-  private static final String MEMBERS_INJECTOR_PREFIX = MembersInjector.class.getName() + "<";
-  private static final String LAZY_PREFIX = Lazy.class.getName() + "<";
-  private static final String SET_PREFIX = Set.class.getName() + "<";
-
-  private static final LruCache<Class<? extends Annotation>, Boolean> IS_QUALIFIER_ANNOTATION
-      = new LruCache<Class<? extends Annotation>, Boolean>(Integer.MAX_VALUE) {
-    @Override protected Boolean create(Class<? extends Annotation> annotationType) {
-      return annotationType.isAnnotationPresent(Qualifier.class);
-    }
-  };
+  private static final String PROVIDER_PREFIX = "javax.inject.Provider<";
+  private static final String MEMBERS_INJECTOR_PREFIX = "dagger.MembersInjector<";
+  private static final String LAZY_PREFIX = "dagger.Lazy<";
+  private static final String SET_PREFIX = "java.util.Set<";
 
   Keys() {
-  }
-
-  /** Returns a key for {@code type} with no annotation. */
-  public static String get(Type type) {
-    return get(type, null);
-  }
-
-
-  /** Returns a key for the members of {@code type}. */
-  public static String getMembersKey(Class<?> key) {
-    return "members/" + get(key);
-  }
-
-  /** Returns a key for {@code type} annotated by {@code annotation}. */
-  public static String get(Type type, Annotation annotation) {
-    type = boxIfPrimitive(type);
-    if (annotation == null && type instanceof Class && !((Class<?>) type).isArray()) {
-      return ((Class<?>) type).getName();
-    }
-    StringBuilder result = new StringBuilder();
-    if (annotation != null) {
-      result.append(annotation).append("/");
-    }
-    typeToString(type, result);
-    return result.toString();
-  }
-
-  /**
-   * Returns a key for {@code type} annotated with {@code annotations},
-   * wrapped by {@code Set}, reporting failures against {@code subject}.
-   *
-   * @param annotations the annotations on a single method, field or parameter.
-   *     This array may contain at most one qualifier annotation.
-   */
-  public static String getElementKey(Type type, Annotation[] annotations, Object subject) {
-    Annotation qualifier = extractQualifier(annotations, subject);
-    type = boxIfPrimitive(type);
-    StringBuilder result = new StringBuilder();
-    if (qualifier != null) {
-      result.append(qualifier).append("/");
-    }
-    result.append(SET_PREFIX);
-    typeToString(type, result);
-    result.append(">");
-    return result.toString();
-  }
-
-  /**
-   * Returns a key for {@code type} annotated with {@code annotations},
-   * reporting failures against {@code subject}.
-   *
-   * @param annotations the annotations on a single method, field or parameter.
-   *     This array may contain at most one qualifier annotation.
-   */
-  public static String get(Type type, Annotation[] annotations, Object subject) {
-    return get(type, extractQualifier(annotations, subject));
-  }
-
-  /**
-   * Validates that among {@code annotations} there exists only one annotation which is, itself
-   * qualified by {@code \@Qualifier}
-   */
-  private static Annotation extractQualifier(Annotation[] annotations,
-      Object subject) {
-    Annotation qualifier = null;
-    for (Annotation a : annotations) {
-      if (!IS_QUALIFIER_ANNOTATION.get(a.annotationType())) {
-        continue;
-      }
-      if (qualifier != null) {
-        throw new IllegalArgumentException("Too many qualifier annotations on " + subject);
-      }
-      qualifier = a;
-    }
-    return qualifier;
-  }
-
-  private static void typeToString(Type type, StringBuilder result) {
-    if (type instanceof Class) {
-      Class<?> c = (Class<?>) type;
-      if (c.isArray()) {
-        result.append(c.getComponentType().getName());
-        result.append("[]");
-      } else if (c.isPrimitive()) {
-        // TODO: support this?
-        throw new UnsupportedOperationException("Uninjectable type " + type);
-      } else {
-        result.append(c.getName());
-      }
-    } else if (type instanceof ParameterizedType) {
-      ParameterizedType parameterizedType = (ParameterizedType) type;
-      typeToString(parameterizedType.getRawType(), result);
-      Type[] arguments = parameterizedType.getActualTypeArguments();
-      result.append("<");
-      for (int i = 0; i < arguments.length; i++) {
-        if (i != 0) {
-          result.append(", ");
-        }
-        typeToString(arguments[i], result);
-      }
-      result.append(">");
-    } else if (type instanceof GenericArrayType) {
-      GenericArrayType genericArrayType = (GenericArrayType) type;
-      result.append(((Class<?>) genericArrayType.getGenericComponentType()).getName());
-      result.append("[]");
-    } else {
-      throw new UnsupportedOperationException("Uninjectable type " + type);
-    }
   }
 
   /**
@@ -254,18 +139,4 @@ public final class Keys {
   public static boolean isPlatformType(String name) {
     return name.startsWith("java.") || name.startsWith("javax.") || name.startsWith("android.");
   }
-
-  private static Type boxIfPrimitive(Type type) {
-    if (type == byte.class) return Byte.class;
-    if (type == short.class) return Short.class;
-    if (type == int.class) return Integer.class;
-    if (type == long.class) return Long.class;
-    if (type == char.class) return Character.class;
-    if (type == boolean.class) return Boolean.class;
-    if (type == float.class) return Float.class;
-    if (type == double.class) return Double.class;
-    if (type == void.class) return Void.class;
-    return type;
-  }
-
 }
