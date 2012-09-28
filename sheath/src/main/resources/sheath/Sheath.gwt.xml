@@ -1,5 +1,14 @@
 <module>
   <inherits name="com.google.gwt.core.Core" />
 
-  <source path="" />
+  <source path="">
+    <exclude name="rebind/**" />
+    <exclude name="super/**" />
+  </source>
+
+  <super-source path="super" />
+
+  <generate-with class="sheath.rebind.SheathGenerator">
+    <when-type-assignable class="sheath.Sheath" />
+  </generate-with>
 </module>
