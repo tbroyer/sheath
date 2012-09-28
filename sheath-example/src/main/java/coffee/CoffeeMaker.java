@@ -1,5 +1,7 @@
 package coffee;
 
+import com.google.gwt.user.client.Window;
+
 import dagger.Lazy;
 import javax.inject.Inject;
 
@@ -10,7 +12,7 @@ class CoffeeMaker {
   public void brew() {
     heater.get().on();
     pump.pump();
-    System.out.println(" [_]P coffee! [_]P ");
+    Window.alert(" [_]P coffee! [_]P ");
     heater.get().off();
   }
 }

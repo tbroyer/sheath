@@ -1,5 +1,7 @@
 package coffee;
 
+import com.google.gwt.user.client.Window;
+
 import javax.inject.Inject;
 
 class Thermosiphon implements Pump {
@@ -12,7 +14,7 @@ class Thermosiphon implements Pump {
 
   @Override public void pump() {
     if (heater.isHot()) {
-      System.out.println("=> => pumping => =>");
+      Window.alert("=> => pumping => =>");
     }
   }
 }

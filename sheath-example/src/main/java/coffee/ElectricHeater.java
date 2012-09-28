@@ -1,10 +1,12 @@
 package coffee;
 
+import com.google.gwt.user.client.Window;
+
 class ElectricHeater implements Heater {
   boolean heating;
 
   @Override public void on() {
-    System.out.println("~ ~ ~ heating ~ ~ ~");
+    Window.alert("~ ~ ~ heating ~ ~ ~");
     this.heating = true;
   }
 

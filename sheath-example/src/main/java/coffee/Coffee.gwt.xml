@@ -1,0 +1,8 @@
+<module rename-to="coffee">
+  <inherits name="com.google.gwt.user.User" />
+  <inherits name="sheath.Sheath" />
+
+  <source path="" />
+
+  <entry-point class="coffee.CoffeeApp" />
+</module>
