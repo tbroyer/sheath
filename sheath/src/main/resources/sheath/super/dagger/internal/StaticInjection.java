@@ -26,18 +26,10 @@ import javax.inject.Inject;
  *
  * @author Jesse Wilson
  */
-public final class StaticInjection {
+public abstract class StaticInjection {
   // TODO: emulate for GWT
 
-  public static StaticInjection get(Class<?> c) {
-    throw new UnsupportedOperationException();
-  }
+  public abstract void attach(Linker linker);
 
-  public void attach(Linker linker) {
-    throw new UnsupportedOperationException();
-  }
-
-  public void inject() {
-    throw new UnsupportedOperationException();
-  }
+  public abstract void inject();
 }

@@ -21,6 +21,7 @@ import java.util.Map;
 import dagger.internal.Binding;
 import dagger.internal.Linker;
 import dagger.internal.ModuleAdapter;
+import dagger.internal.StaticInjection;
 import dagger.internal.UniqueMap;
 
 public abstract class AbstractSheath implements Sheath {
@@ -40,9 +41,12 @@ public abstract class AbstractSheath implements Sheath {
     }
   }
 
+  private StaticInjection[] staticInjections;
   private final Linker linker;
 
-  protected AbstractSheath(Linker linker, ModuleAdapter<?>...adapters) {
+  protected AbstractSheath(Linker linker, StaticInjection[] staticInjections, ModuleAdapter<?>[] adapters) {
+    this.staticInjections = staticInjections;
+
     // Extract bindings in the 'base' and 'overrides' set. Within each set no
     // duplicates are permitted.
     Map<String, Binding<?>> baseBindings = new UniqueMap<String, Binding<?>>();
@@ -63,6 +67,29 @@ public abstract class AbstractSheath implements Sheath {
   private native void initModuleAdapter(ModuleAdapter<?> adapter) /*-{
     adapter.@dagger.internal.ModuleAdapter::module = adapter.@dagger.internal.ModuleAdapter::newModule()();
   }-*/;
+
+  // copied from dagger.ObjectGraph
+  @Override
+  public void injectStatics() {
+    // We call linkStaticInjections() twice on purpose. The first time through
+    // we request all of the bindings we need. The linker returns null for
+    // bindings it doesn't have. Then we ask the linker to link all of those
+    // requested bindings. Finally we call linkStaticInjections() again: this
+    // time the linker won't return null because everything has been linked.
+    linkStaticInjections();
+    linker.linkRequested();
+    linkStaticInjections();
+
+    for (StaticInjection staticInjection : staticInjections) {
+      staticInjection.inject();
+    }
+  }
+
+  private void linkStaticInjections() {
+    for (StaticInjection staticInjection : staticInjections) {
+      staticInjection.attach(linker);
+    }
+  }
 
   @SuppressWarnings("unchecked")
   protected void doInject(Object instance, String key, Class<?> moduleClass) {
