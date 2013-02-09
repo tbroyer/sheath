@@ -38,12 +38,6 @@ public @interface Module {
   boolean overrides() default false;
 
   /**
-   * @deprecated Use module includes vs. children
-   */
-  @Deprecated
-  Class<?>[] children() default { };
-
-  /**
    * Additional {@code @Module}-annotated classes from which this module is
    * composed. The de-duplicated contributions of the modules in
    * {@code includes}, and of their inclusions recursively, are all contributed
@@ -52,10 +46,18 @@ public @interface Module {
   Class<?>[] includes() default { };
 
   /**
+   * An optional {@code @Module}-annotated class upon which this module can be
+   * {@link ObjectGraph#plus added} to form a complete graph.
+   */
+  Class<?> addsTo() default Void.class;
+
+  /**
    * True if all of the bindings required by this module can also be satisfied
-   * by this module. If a module is complete it is eligible for additional
-   * static checking: tools can detect if required bindings are not available.
-   * Modules that have external dependencies must use {@code complete = false}.
+   * by this module, its {@link #includes} and its {@link #addsTo}. If a module
+   * is complete it is eligible for additional static checking: tools can detect
+   * if required bindings are not available. Modules that have external
+   * dependencies must use {@code complete = false}.
    */
   boolean complete() default true;
+
 }

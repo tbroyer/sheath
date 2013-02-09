@@ -1,5 +1,4 @@
 /*
- * Copyright (C) 2007 Google Inc.
  * Copyright (C) 2012 Square, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,22 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dagger;
+package dagger.internal;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import java.util.List;
 
 /**
- * Annotates methods of a module to create a provider method binding. The
- * method's return type is bound to it's returned value. The object graph will
- * pass dependencies to the method as parameters.
- *
- * @author Bob Lee
+ * Handles errors by throwing an exception containing all the available errors.
  */
-@Documented @Target(METHOD) @Retention(RUNTIME)
-public @interface Provides {
+public final class ThrowingErrorHandler implements Linker.ErrorHandler {
+
+  @Override public void handleErrors(List<String> errors) {
+    if (errors.isEmpty()) {
+      return;
+    }
+    StringBuilder message = new StringBuilder();
+    message.append("Errors creating object graph:");
+    for (String error : errors) {
+      message.append("\n  ").append(error);
+    }
+    throw new IllegalStateException(message.toString());
+  }
 }

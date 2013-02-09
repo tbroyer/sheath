@@ -22,8 +22,24 @@ import javax.inject.Provider;
 /**
  * Injects a value of a specific type.
  */
-public class Binding<T> implements Provider<T>, MembersInjector<T> {
-  public static final Binding<Object> UNRESOLVED = new Binding<Object>(null, null, false, null);
+public abstract class Binding<T> implements Provider<T>, MembersInjector<T> {
+  public static final Binding<Object> UNRESOLVED = new Binding<Object>(null, null, false, null) {
+    @Override public void getDependencies(Set<Binding<?>> bindings, Set<Binding<?>> memBindings) {
+      // do nothing
+    }
+  };
+
+  /** Set if the provided instance is always the same object. */
+  private static final int SINGLETON = 1 << 0;
+
+  /** Set if this binding's {@link #attach} completed without any missing dependencies. */
+  private static final int LINKED = 1 << 1;
+
+  /** Set if {@link ProblemDetector} is actively visiting this binding. */
+  private static final int VISITING = 1 << 2;
+
+  /** Set if {@link ProblemDetector} has confirmed this binding has no circular dependencies. */
+  private static final int CYCLE_FREE = 1 << 3;
 
   /** The key used to provide instances of 'T', or null if this binding cannot provide instances. */
   public final String provideKey;
@@ -31,11 +47,10 @@ public class Binding<T> implements Provider<T>, MembersInjector<T> {
   /** The key used to inject members of 'T', or null if this binding cannot inject members. */
   public final String membersKey;
 
-  /** True if the provided instance is always the same object. */
-  public final boolean singleton;
+  /** Bitfield of states like SINGLETON and LINKED. */
+  private int bits;
 
   public final Object requiredBy;
-  public boolean linked;
 
   protected Binding(String provideKey, String membersKey, boolean singleton, Object requiredBy) {
     if (singleton && provideKey == null) {
@@ -43,7 +58,7 @@ public class Binding<T> implements Provider<T>, MembersInjector<T> {
     }
     this.provideKey = provideKey;
     this.membersKey = membersKey;
-    this.singleton = singleton;
+    this.bits = (singleton ? SINGLETON : 0);
     this.requiredBy = requiredBy;
   }
 
@@ -75,4 +90,38 @@ public class Binding<T> implements Provider<T>, MembersInjector<T> {
   public void getDependencies(Set<Binding<?>> getBindings, Set<Binding<?>> injectMembersBindings) {
     throw new UnsupportedOperationException(getClass().getName());
   }
+
+  void setLinked() {
+    bits |= LINKED;
+  }
+
+  public boolean isLinked() {
+    return (bits & LINKED) != 0;
+  }
+
+  boolean isSingleton() {
+    return (bits & SINGLETON) != 0;
+  }
+
+  public boolean isVisiting() {
+    return (bits & VISITING) != 0;
+  }
+
+  public void setVisiting(boolean visiting) {
+    this.bits = visiting ? (bits | VISITING) : (bits & ~VISITING);
+  }
+
+  public boolean isCycleFree() {
+    return (bits & CYCLE_FREE) != 0;
+  }
+
+  public void setCycleFree(boolean cycleFree) {
+    this.bits = cycleFree ? (bits | CYCLE_FREE) : (bits & ~CYCLE_FREE);
+  }
+
+  @Override public String toString() {
+    return getClass().getName()
+            + "[provideKey=\"" + provideKey + "\", memberskey=\"" + membersKey + "\"]";
+  }
+
 }

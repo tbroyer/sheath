@@ -43,7 +43,7 @@
     <dependency>
       <groupId>javax.inject</groupId>
       <artifactId>javax.inject</artifactId>
-      <classifier>sources</classifier>
+      <type>java-source</type>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -54,14 +54,19 @@
   <build>
     <resources>
       <resource>
+        <directory>src/main/java</directory>
+      </resource>
+      <resource>
         <directory>src/main/resources</directory>
       </resource>
       <resource>
-        <directory>src/main/java</directory>
+        <directory>src/main/super</directory>
+        <targetPath>sheath/super</targetPath>
       </resource>
       <resource>
         <!-- where sources will be unpacked by maven-dependency-plugin -->
         <directory>${project.build.directory}/generated-sources/gwt-super-source</directory>
+        <targetPath>sheath/super</targetPath>
       </resource>
     </resources>
     <plugins>
@@ -76,10 +81,9 @@
             </goals>
             <configuration>
               <includeArtifactIds>javax.inject</includeArtifactIds>
-              <classifier>sources</classifier>
               <excludeTransitive>true</excludeTransitive>
               <excludes>META-INF/MANIFEST.MF</excludes>
-              <outputDirectory>${project.build.directory}/generated-sources/gwt-super-source/sheath/super</outputDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/gwt-super-source</outputDirectory>
             </configuration>
           </execution>
         </executions>

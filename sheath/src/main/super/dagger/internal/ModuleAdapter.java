@@ -16,6 +16,7 @@
  */
 package dagger.internal;
 
+
 import java.util.Map;
 
 /**
@@ -53,4 +54,6 @@ public abstract class ModuleAdapter<T> {
   public T getModule() {
     return module;
   }
+
+
 }

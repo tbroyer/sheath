@@ -47,7 +47,8 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <gwt.version>2.5.0-rc1</gwt.version>
+    <gwt.version>2.5.0</gwt.version>
+    <dagger.version>0.9.1</dagger.version>
   </properties>
 
   <dependencyManagement>
@@ -67,18 +68,18 @@
       <dependency>
         <groupId>com.squareup</groupId>
         <artifactId>dagger</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>${dagger.version}</version>
       </dependency>
       <dependency>
         <groupId>javax.inject</groupId>
         <artifactId>javax.inject</artifactId>
         <version>1</version>
-        <classifier>sources</classifier>
+        <type>java-source</type>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
-        <version>4.10</version>
+        <version>4.11</version>
         <scope>test</scope>
       </dependency>
     </dependencies>
@@ -90,6 +91,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.0</version>
           <configuration>
             <!-- http://maven.apache.org/plugins/maven-compiler-plugin/ -->
             <source>1.6</source>
@@ -98,12 +100,12 @@
         </plugin>
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.5.1</version>
+          <version>2.6</version>
         </plugin>
         <plugin>
           <groupId>org.bsc.maven</groupId>
           <artifactId>maven-processor-plugin</artifactId>
-          <version>2.0.7</version>
+          <version>2.1.1</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>

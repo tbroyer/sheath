@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 Square Inc.
+ * Copyright (C) 2012 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,21 +16,14 @@
  */
 package dagger.internal;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.List;
-import javax.inject.Inject;
 
 /**
  * Injects the static fields of a class.
- *
- * @author Jesse Wilson
  */
 public abstract class StaticInjection {
-  // TODO: emulate for GWT
 
   public abstract void attach(Linker linker);
 
   public abstract void inject();
+
 }

@@ -15,8 +15,11 @@
  */
 package sheath;
 
-import java.util.List;
 import java.util.Map;
+
+import dagger.internal.ThrowingErrorHandler;
+
+import dagger.internal.Plugin;
 
 import dagger.internal.Binding;
 import dagger.internal.Linker;
@@ -26,26 +29,27 @@ import dagger.internal.UniqueMap;
 
 public abstract class AbstractSheath implements Sheath {
 
-  protected static abstract class AbstractLinker extends Linker {
-
-    @Override protected void reportErrors(List<String> errors) {
-      if (errors.isEmpty()) {
-        return;
-      }
-      StringBuilder message = new StringBuilder();
-      message.append("Errors creating object graph:");
-      for (String error : errors) {
-        message.append("\n  ").append(error);
-      }
-      throw new IllegalArgumentException(message.toString());
+  public static abstract class AbstractSheathPlugin implements Plugin {
+    @Override
+    public <T> ModuleAdapter<T> getModuleAdapter(Class<? extends T> moduleClass, T module) {
+      throw new UnsupportedOperationException();
     }
+
+    @Override
+    public StaticInjection getStaticInjection(Class<?> injectedClass) {
+      throw new UnsupportedOperationException();
+    }
+
+    protected abstract StaticInjection[] createStaticInjections();
   }
 
-  private StaticInjection[] staticInjections;
+  private final AbstractSheathPlugin plugin;
   private final Linker linker;
 
-  protected AbstractSheath(Linker linker, StaticInjection[] staticInjections, ModuleAdapter<?>[] adapters) {
-    this.staticInjections = staticInjections;
+  private StaticInjection[] staticInjections;
+
+  protected AbstractSheath(AbstractSheathPlugin plugin, ModuleAdapter<?>[] adapters) {
+    this.plugin = plugin;
 
     // Extract bindings in the 'base' and 'overrides' set. Within each set no
     // duplicates are permitted.
@@ -59,7 +63,7 @@ public abstract class AbstractSheath implements Sheath {
     }
 
     // Install all of the user's bindings.
-    this.linker = linker;
+    this.linker = new Linker(null, plugin, new ThrowingErrorHandler());
     linker.installBindings(baseBindings);
     linker.installBindings(overrideBindings);
   }
@@ -68,9 +72,13 @@ public abstract class AbstractSheath implements Sheath {
     adapter.@dagger.internal.ModuleAdapter::module = adapter.@dagger.internal.ModuleAdapter::newModule()();
   }-*/;
 
-  // copied from dagger.ObjectGraph
+  // copied and adapted from dagger.ObjectGraph
   @Override
   public void injectStatics() {
+    if (staticInjections == null) {
+      this.staticInjections = plugin.createStaticInjections();
+    }
+
     // We call linkStaticInjections() twice on purpose. The first time through
     // we request all of the bindings we need. The linker returns null for
     // bindings it doesn't have. Then we ask the linker to link all of those
@@ -94,7 +102,7 @@ public abstract class AbstractSheath implements Sheath {
   @SuppressWarnings("unchecked")
   protected void doInject(Object instance, String key, Class<?> moduleClass) {
     Binding<?> binding = linker.requestBinding(key, moduleClass);
-    if (binding == null || !binding.linked) {
+    if (binding == null || !binding.isLinked()) {
       linker.linkRequested();
       binding = linker.requestBinding(key, moduleClass);
     }

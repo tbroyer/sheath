@@ -130,7 +130,7 @@ public final class Keys {
     if (key.startsWith("@") || key.startsWith("members/")) {
       start = key.lastIndexOf('/') + 1;
     }
-    return (key.indexOf('<', start) == -1 && key.indexOf('[') == -1)
+    return (key.indexOf('<', start) == -1 && key.indexOf('[', start) == -1)
         ? key.substring(start)
         : null;
   }
@@ -139,4 +139,5 @@ public final class Keys {
   public static boolean isPlatformType(String name) {
     return name.startsWith("java.") || name.startsWith("javax.") || name.startsWith("android.");
   }
+
 }

@@ -16,7 +16,6 @@
 package dagger.internal;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -27,8 +26,15 @@ import java.util.Set;
 /**
  * Links bindings to their dependencies.
  */
-public abstract class Linker {
+public final class Linker {
   private static final Object UNINITIALIZED = new Object();
+
+  /**
+   * The base {@code Linker} which will be consulted to satisfy bindings not
+   * otherwise satisfiable from this {@code Linker}. The top-most {@code Linker}
+   * in a chain will have a null base linker.
+   */
+  private final Linker base;
 
   /** Bindings requiring a call to attach(). May contain deferred bindings. */
   private final Queue<Binding<?>> toLink = new LinkedList<Binding<?>>();
@@ -42,12 +48,25 @@ public abstract class Linker {
   /** All of the object graph's bindings. This may contain unlinked bindings. */
   private final Map<String, Binding<?>> bindings = new HashMap<String, Binding<?>>();
 
+  private final Plugin plugin;
+
+  private final ErrorHandler errorHandler;
+
+  public Linker(Linker base, Plugin plugin, ErrorHandler errorHandler) {
+    if (plugin == null) throw new NullPointerException("plugin");
+    if (errorHandler == null) throw new NullPointerException("errorHandler");
+
+    this.base = base;
+    this.plugin = plugin;
+    this.errorHandler = errorHandler;
+  }
+
   /**
    * Adds all bindings in {@code toInstall}. The caller must call either {@link
    * #linkAll} or {@link #requestBinding} and {@link #linkRequested} before the
    * bindings can be used.
    */
-  public final void installBindings(Map<String, ? extends Binding<?>> toInstall) {
+  public void installBindings(Map<String, ? extends Binding<?>> toInstall) {
     for (Map.Entry<String, ? extends Binding<?>> entry : toInstall.entrySet()) {
       bindings.put(entry.getKey(), scope(entry.getValue()));
     }
@@ -60,30 +79,32 @@ public abstract class Linker {
    *
    * @return all bindings known by this linker, which will all be linked.
    */
-  public final Collection<Binding<?>> linkAll() {
+  public Map<String, Binding<?>> linkAll() {
     for (Binding<?> binding : bindings.values()) {
-      if (!binding.linked) {
+      if (!binding.isLinked()) {
         toLink.add(binding);
       }
     }
     linkRequested();
-    return bindings.values();
+    return bindings;
   }
 
   /**
    * Links all requested bindings plus their transitive dependencies. This
    * creates JIT bindings as necessary to fill in the gaps.
    */
-  public final void linkRequested() {
-    Binding binding;
+  public void linkRequested() {
+    Binding<?> binding;
     while ((binding = toLink.poll()) != null) {
       if (binding instanceof DeferredBinding) {
-        String key = ((DeferredBinding<?>) binding).deferredKey;
+        DeferredBinding deferredBinding = (DeferredBinding) binding;
+        String key = deferredBinding.deferredKey;
+        boolean mustBeInjectable = deferredBinding.mustBeInjectable;
         if (bindings.containsKey(key)) {
           continue; // A binding for this key has since been linked.
         }
         try {
-          Binding<?> jitBinding = createJitBinding(key, binding.requiredBy);
+          Binding<?> jitBinding = createJitBinding(key, binding.requiredBy, mustBeInjectable);
           // Fail if the type of binding we got wasn't capable of what was requested.
           if (!key.equals(jitBinding.provideKey) && !key.equals(jitBinding.membersKey)) {
             throw new IllegalStateException("Unable to create binding for " + key);
@@ -92,8 +113,14 @@ public abstract class Linker {
           toLink.add(jitBinding);
           putBinding(jitBinding);
         } catch (Exception e) {
-          addError(e.getMessage() + " required by " + binding.requiredBy);
-          bindings.put(key, Binding.UNRESOLVED);
+          if (e.getMessage() != null) {
+            addError(e.getMessage() + " required by " + binding.requiredBy);
+            bindings.put(key, Binding.UNRESOLVED);
+          } else if (e instanceof RuntimeException) {
+            throw (RuntimeException) e;
+          } else {
+            throw new RuntimeException(e);
+          }
         }
       } else {
         // Attempt to attach the binding to its dependencies. If any dependency
@@ -102,7 +129,7 @@ public abstract class Linker {
         attachSuccess = true;
         binding.attach(this);
         if (attachSuccess) {
-          binding.linked = true;
+          binding.setLinked();
         } else {
           toLink.add(binding);
         }
@@ -110,7 +137,7 @@ public abstract class Linker {
     }
 
     try {
-      reportErrors(errors);
+      errorHandler.handleErrors(errors);
     } finally {
       errors.clear();
     }
@@ -126,7 +153,7 @@ public abstract class Linker {
    *   <li>Injections of other types will use the injectable constructors of those classes.
    * </ul>
    */
-  private Binding<?> createJitBinding(String key, Object requiredBy) {
+  private Binding<?> createJitBinding(String key, Object requiredBy, boolean mustBeInjectable) {
     String builtInBindingsKey = Keys.getBuiltInBindingsKey(key);
     if (builtInBindingsKey != null) {
       return new BuiltInBinding<Object>(key, requiredBy, builtInBindingsKey);
@@ -138,7 +165,7 @@ public abstract class Linker {
 
     String className = Keys.getClassName(key);
     if (className != null && !Keys.isAnnotated(key)) {
-      Binding<?> atInjectBinding = createAtInjectBinding(key, className);
+      Binding<?> atInjectBinding = plugin.getAtInjectBinding(key, className, mustBeInjectable);
       if (atInjectBinding != null) {
         return atInjectBinding;
       }
@@ -147,28 +174,45 @@ public abstract class Linker {
     throw new IllegalArgumentException("No binding for " + key);
   }
 
-  /**
-   * Returns a binding that uses {@code @Inject} annotations, or null if no such
-   * binding can be created.
-   */
-  protected abstract Binding<?> createAtInjectBinding(String key, String className);
 
   /**
    * Returns the binding if it exists immediately. Otherwise this returns
    * null. If the returned binding didn't exist or was unlinked, it will be
    * enqueued to be linked.
    */
-  public final Binding<?> requestBinding(String key, Object requiredBy) {
-    Binding<?> binding = bindings.get(key);
+  public Binding<?> requestBinding(String key, Object requiredBy) {
+    return requestBinding(key, requiredBy, true);
+  }
+
+  /**
+   * Returns the binding if it exists immediately. Otherwise this returns
+   * null. If the returned binding didn't exist or was unlinked, it will be
+   * enqueued to be linked.
+   *
+   * @param mustBeInjectable true if the the referenced key doesn't need to be
+   *     injectable. This is necessary for entry points (so that framework code
+   *     can inject arbitrary entry points like JUnit test cases or Android
+   *     activities) and for supertypes.
+   */
+  public Binding<?> requestBinding(String key, Object requiredBy, boolean mustBeInjectable) {
+    Binding<?> binding = null;
+    for (Linker linker = this; linker != null; linker = linker.base) {
+      binding = linker.bindings.get(key);
+      if (binding != null) {
+        if (linker != this && !binding.isLinked()) throw new AssertionError();
+        break;
+      }
+    }
+
     if (binding == null) {
       // We can't satisfy this binding. Make sure it'll work next time!
-      DeferredBinding<Object> deferredBinding = new DeferredBinding<Object>(key, requiredBy);
+      Binding<?> deferredBinding = new DeferredBinding(key, requiredBy, mustBeInjectable);
       toLink.add(deferredBinding);
       attachSuccess = false;
       return null;
     }
 
-    if (!binding.linked) {
+    if (!binding.isLinked()) {
       toLink.add(binding); // This binding was never linked; link it now!
     }
 
@@ -193,7 +237,7 @@ public abstract class Linker {
    * Returns a scoped binding for {@code binding}.
    */
   static <T> Binding<T> scope(final Binding<T> binding) {
-    if (!binding.singleton) {
+    if (!binding.isSingleton()) {
       return binding;
     }
     if (binding instanceof SingletonBinding) throw new AssertionError();
@@ -215,15 +259,6 @@ public abstract class Linker {
   private void addError(String message) {
     errors.add(message);
   }
-
-  /**
-   * Fail if any errors have been enqueued and clear the list of errors.
-   * Implementations may throw exceptions or report the errors through another
-   * channel.
-   *
-   * @param errors a potentially empty list of error messages.
-   */
-  protected abstract void reportErrors(List<String> errors);
 
   /**
    * A Binding that implements singleton behaviour around an existing binding.
@@ -263,11 +298,26 @@ public abstract class Linker {
     }
   }
 
-  private static class DeferredBinding<T> extends Binding<T> {
+  /** Handles linker errors appropriately. */
+  public interface ErrorHandler {
+    /**
+     * Fail if any errors have been enqueued.
+     * Implementations may throw exceptions or report the errors through another
+     * channel.  Callers are responsible for clearing enqueued errors.
+     *
+     * @param errors a potentially empty list of error messages.
+     */
+    void handleErrors(List<String> errors);
+  }
+
+  private static class DeferredBinding extends Binding<Object> {
     final String deferredKey;
-    private DeferredBinding(String deferredKey, Object requiredBy) {
+    final boolean mustBeInjectable;
+    private DeferredBinding(String deferredKey, Object requiredBy, boolean mustBeInjectable) {
       super(null, null, false, requiredBy);
       this.deferredKey = deferredKey;
+      this.mustBeInjectable = mustBeInjectable;
     }
   }
+
 }

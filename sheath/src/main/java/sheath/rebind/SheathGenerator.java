@@ -99,10 +99,10 @@ public class SheathGenerator extends IncrementalGenerator {
     SourceWriter sw = factory.createSourceWriter(context, pw);
 
     // Linker
-    sw.println("private static class Linker extends AbstractLinker {");
+    sw.println("private static class Plugin extends AbstractSheathPlugin {");
     sw.indent();
     sw.println("@java.lang.Override");
-    sw.println("protected native %1$s<?> createAtInjectBinding(%2$s key, %2$s className) /*-{",
+    sw.println("public native %1$s<?> getAtInjectBinding(%2$s key, %2$s className, boolean mustBeInjectable) /*-{",
         Binding.class.getCanonicalName(), String.class.getCanonicalName());
     sw.indent();
     sw.println("switch (className) {");
@@ -126,7 +126,7 @@ public class SheathGenerator extends IncrementalGenerator {
         String name = type.getQualifiedSourceName();
         String factoryName = "create_" + name.replace('.', '_') + "_InjectAdapter";
         factoryMethodsToGenerate.put(adapterName, factoryName);
-        sw.println("case '%s': return this.@%s.Linker::%s()();", name, factory.getCreatedClassName(), factoryName);
+        sw.println("case '%s': return this.@%s.Plugin::%s()();", name, factory.getCreatedClassName(), factoryName);
       }
     }
     sw.println("default: return null;");
@@ -134,10 +134,24 @@ public class SheathGenerator extends IncrementalGenerator {
     sw.outdent();
     sw.println("}-*/;");
     for (Map.Entry<String, String> factoryMethodToGenerate : factoryMethodsToGenerate.entrySet()) {
+      sw.println();
       sw.println("private %s %s() {", factoryMethodToGenerate.getKey(), factoryMethodToGenerate.getValue());
       sw.indentln("return new %s();", factoryMethodToGenerate.getKey());
       sw.println("}");
     }
+    sw.println();
+    sw.println("@java.lang.Override");
+    sw.println("public %s[] createStaticInjections() {", StaticInjection.class.getCanonicalName());
+    sw.indent();
+    sw.println("return new %s[] {", StaticInjection.class.getCanonicalName());
+    sw.indent();
+    for (Class<?> staticInjection : staticInjections) {
+      sw.println("new %s$StaticInjection(),", staticInjection.getName());
+    }
+    sw.outdent();
+    sw.println("};");
+    sw.outdent();
+    sw.println("}");
     sw.outdent();
     sw.print("}");
 
@@ -145,20 +159,7 @@ public class SheathGenerator extends IncrementalGenerator {
     sw.println();
     sw.println("public %s() {", simpleSourceName);
     sw.indent();
-    sw.println("super(new Linker(), ");
-    sw.indent();
-    if (staticInjections.isEmpty()) {
-      sw.print("null");
-    } else {
-      sw.println("new %s[] {", StaticInjection.class.getCanonicalName());
-      sw.indent();
-      for (Class<?> staticInjection : staticInjections) {
-        sw.println("new %s$StaticInjection(),", staticInjection.getName());
-      }
-      sw.outdent();
-      sw.print("}");
-    }
-    sw.println(",");
+    sw.println("super(new Plugin(), ");
     sw.println("new %s<?>[] {", ModuleAdapter.class.getCanonicalName());
     sw.indent();
     for (Class<?> module : moduleClasses) {
