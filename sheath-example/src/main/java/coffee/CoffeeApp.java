@@ -14,14 +14,14 @@ import sheath.SheathEntryPoint;
 
 class CoffeeApp implements EntryPoint {
   @Modules(DripCoffeeModule.class)
-  interface CoffeeGagger extends SheathEntryPoint<CoffeeApp> { }
+  interface CoffeeGraph extends SheathEntryPoint<CoffeeApp> { }
 
   @Inject CoffeeMaker coffeeMaker;
 
   @Override
   public void onModuleLoad() {
-    CoffeeGagger gagger = GWT.create(CoffeeGagger.class);
-    gagger.inject(this);
+    CoffeeGraph graph = GWT.create(CoffeeGraph.class);
+    graph.inject(this);
 
     Button btn = Button.wrap(Document.get().getElementById("coffeeMaker"));
     btn.addClickHandler(new ClickHandler() {
