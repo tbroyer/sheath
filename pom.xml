@@ -47,8 +47,8 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <gwt.version>2.5.0</gwt.version>
     <dagger.version>0.9.1</dagger.version>
+    <gwt.version>2.5.1</gwt.version>
   </properties>
 
   <dependencyManagement>
@@ -91,7 +91,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.0</version>
+          <version>3.1</version>
           <configuration>
             <!-- http://maven.apache.org/plugins/maven-compiler-plugin/ -->
             <source>1.6</source>
@@ -100,12 +100,12 @@
         </plugin>
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.6</version>
+          <version>2.7</version>
         </plugin>
         <plugin>
           <groupId>org.bsc.maven</groupId>
           <artifactId>maven-processor-plugin</artifactId>
-          <version>2.1.1</version>
+          <version>2.2.1</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
