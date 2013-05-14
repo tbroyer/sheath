@@ -37,7 +37,7 @@
       <artifactId>gwt-user</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.squareup</groupId>
+      <groupId>com.squareup.dagger</groupId>
       <artifactId>dagger</artifactId>
     </dependency>
     <dependency>

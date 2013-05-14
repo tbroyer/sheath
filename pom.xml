@@ -47,8 +47,8 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <dagger.version>0.9.1</dagger.version>
     <gwt.version>2.5.1</gwt.version>
+    <dagger.version>1.0.0</dagger.version>
   </properties>
 
   <dependencyManagement>
@@ -66,7 +66,7 @@
         <scope>provided</scope>
       </dependency>
       <dependency>
-        <groupId>com.squareup</groupId>
+        <groupId>com.squareup.dagger</groupId>
         <artifactId>dagger</artifactId>
         <version>${dagger.version}</version>
       </dependency>

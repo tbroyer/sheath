@@ -73,13 +73,13 @@ public class SheathGenerator extends IncrementalGenerator {
 
     Class<?>[] moduleClasses = collectAllModules(logger, toGenerate);
 
-    Map<String, String> entryPoints = new LinkedHashMap<String, String>();
+    Map<String, String> injectableTypes = new LinkedHashMap<String, String>();
     Set<Class<?>> staticInjections = new LinkedHashSet<Class<?>>();
     for (Class<?> module : moduleClasses) {
       Module annotation = module.getAnnotation(Module.class);
       String moduleName = module.getCanonicalName();
-      for (Class<?> key : annotation.entryPoints()) {
-        entryPoints.put(key.getName(), moduleName);
+      for (Class<?> key : annotation.injects()) {
+        injectableTypes.put(key.getName(), moduleName);
       }
       for (Class<?> c : annotation.staticInjections()) {
         staticInjections.add(c);
@@ -109,12 +109,12 @@ public class SheathGenerator extends IncrementalGenerator {
     LinkedHashMap<String, String> factoryMethodsToGenerate = new LinkedHashMap<String, String>();
     for (JClassType type : oracle.getTypes()) {
       // XXX: workaround for http://code.google.com/p/google-web-toolkit/issues/detail?id=6799
-      // We really should use type.getName().endsWith("$InjectAdapter") but GWT makes a JClassType
+      // We really should use type.getName().endsWith("$$InjectAdapter") but GWT makes a JClassType
       // with name "InjectAdapter", thinking it's a nested class, and we lose the part before the
       // dollar. So in the mean time, look for the InjectAdapter in the classpath FOR EACH CLASS,
       // and we additionally generate a non-JSNI class to instantiate it, so that processing of the
       // class name is done by JDT rather than GWT's TypeOracle.
-      String adapterName = type.getQualifiedSourceName() + "$InjectAdapter";
+      String adapterName = type.getQualifiedSourceName() + "$$InjectAdapter";
       boolean found;
       try {
         Class.forName(adapterName, false, Thread.currentThread().getContextClassLoader());
@@ -146,7 +146,7 @@ public class SheathGenerator extends IncrementalGenerator {
     sw.println("return new %s[] {", StaticInjection.class.getCanonicalName());
     sw.indent();
     for (Class<?> staticInjection : staticInjections) {
-      sw.println("new %s$StaticInjection(),", staticInjection.getName());
+      sw.println("new %s$$StaticInjection(),", staticInjection.getName());
     }
     sw.outdent();
     sw.println("};");
@@ -163,7 +163,7 @@ public class SheathGenerator extends IncrementalGenerator {
     sw.println("new %s<?>[] {", ModuleAdapter.class.getCanonicalName());
     sw.indent();
     for (Class<?> module : moduleClasses) {
-      sw.println("new %s$ModuleAdapter(),", module.getName());
+      sw.println("new %s$$ModuleAdapter(),", module.getName());
     }
     sw.outdent();
     sw.println("});");
@@ -172,7 +172,7 @@ public class SheathGenerator extends IncrementalGenerator {
     sw.println("}");
 
     for (JMethod method : toGenerate.getOverridableMethods()) {
-      // TODO: check arguments (number, entry-point)
+      // TODO: check arguments (number, injectable types)
       if (method.getParameterTypes().length != 1) {
         // could be injectStatics()
         continue;
@@ -186,7 +186,7 @@ public class SheathGenerator extends IncrementalGenerator {
       sw.indent();
       sw.println("doInject(instance, \"members/%s\", %s.class);",
           toInject.getParameterizedQualifiedSourceName(),
-          entryPoints.get(toInject.getQualifiedBinaryName()));
+          injectableTypes.get(toInject.getQualifiedBinaryName()));
       if (!JPrimitiveType.VOID.equals(method.getReturnType())) {
         sw.println("return arg;");
       }

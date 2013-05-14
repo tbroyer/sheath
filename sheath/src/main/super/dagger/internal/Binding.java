@@ -24,10 +24,15 @@ import javax.inject.Provider;
  */
 public abstract class Binding<T> implements Provider<T>, MembersInjector<T> {
   public static final Binding<Object> UNRESOLVED = new Binding<Object>(null, null, false, null) {
-    @Override public void getDependencies(Set<Binding<?>> bindings, Set<Binding<?>> memBindings) {
-      // do nothing
+    @Override public Object get() {
+      throw new AssertionError("Unresolved binding should never be called to inject.");
+    }
+    @Override public void injectMembers(Object t) {
+      throw new AssertionError("Unresolved binding should never be called to inject.");
     }
   };
+  protected static final boolean IS_SINGLETON = true;
+  protected static final boolean NOT_SINGLETON = false;
 
   /** Set if the provided instance is always the same object. */
   private static final int SINGLETON = 1 << 0;
@@ -40,6 +45,10 @@ public abstract class Binding<T> implements Provider<T>, MembersInjector<T> {
 
   /** Set if {@link ProblemDetector} has confirmed this binding has no circular dependencies. */
   private static final int CYCLE_FREE = 1 << 3;
+
+  private static final int DEPENDED_ON = 1 << 4;
+
+  private static final int LIBRARY = 1 << 5;
 
   /** The key used to provide instances of 'T', or null if this binding cannot provide instances. */
   public final String provideKey;
@@ -58,8 +67,8 @@ public abstract class Binding<T> implements Provider<T>, MembersInjector<T> {
     }
     this.provideKey = provideKey;
     this.membersKey = membersKey;
-    this.bits = (singleton ? SINGLETON : 0);
     this.requiredBy = requiredBy;
+    this.bits = (singleton ? SINGLETON : 0);
   }
 
   /**
@@ -69,11 +78,12 @@ public abstract class Binding<T> implements Provider<T>, MembersInjector<T> {
   }
 
   @Override public void injectMembers(T t) {
-    throw new UnsupportedOperationException(getClass().getName());
+    // If no members to inject, no-op.  Some classes will have no injectable members even
+    // if their supertypes do.
   }
 
   @Override public T get() {
-    throw new UnsupportedOperationException(getClass().getName());
+    throw new UnsupportedOperationException("No injectable constructor on " + getClass().getName());
   }
 
   /**
@@ -88,7 +98,7 @@ public abstract class Binding<T> implements Provider<T>, MembersInjector<T> {
    *     injectMembers} method.
    */
   public void getDependencies(Set<Binding<?>> getBindings, Set<Binding<?>> injectMembersBindings) {
-    throw new UnsupportedOperationException(getClass().getName());
+    // Do nothing.  No override == no dependencies to contribute.
   }
 
   void setLinked() {
@@ -119,9 +129,24 @@ public abstract class Binding<T> implements Provider<T>, MembersInjector<T> {
     this.bits = cycleFree ? (bits | CYCLE_FREE) : (bits & ~CYCLE_FREE);
   }
 
+  public void setLibrary(boolean library) {
+    this.bits = library ? (bits | LIBRARY) : (bits & ~LIBRARY);
+  }
+
+  public boolean library() {
+    return (bits & LIBRARY) != 0;
+  }
+
+  public void setDependedOn(boolean dependedOn) {
+    this.bits = dependedOn ? (bits | DEPENDED_ON) : (bits & ~DEPENDED_ON);
+  }
+
+  public boolean dependedOn() {
+    return (bits & DEPENDED_ON) != 0;
+  }
+
   @Override public String toString() {
     return getClass().getName()
             + "[provideKey=\"" + provideKey + "\", memberskey=\"" + membersKey + "\"]";
   }
-
 }

@@ -23,37 +23,41 @@ import java.util.Map;
  * Extracts bindings from an {@code @Module}-annotated class.
  */
 public abstract class ModuleAdapter<T> {
-  public final String[] entryPoints;
+  public final String[] injectableTypes;
   public final Class<?>[] staticInjections;
   public final boolean overrides;
   public final Class<?>[] includes;
   public final boolean complete;
+  public final boolean library;
   protected T module;
 
-  protected ModuleAdapter(String[] entryPoints, Class<?>[] staticInjections, boolean overrides,
-      Class<?>[] includes, boolean complete) {
-    this.entryPoints = entryPoints;
+  protected ModuleAdapter(String[] injectableTypes, Class<?>[] staticInjections, boolean overrides,
+      Class<?>[] includes, boolean complete, boolean library) {
+    this.injectableTypes = injectableTypes;
     this.staticInjections = staticInjections;
     this.overrides = overrides;
     this.includes = includes;
     this.complete = complete;
+    this.library = library;
   }
 
   /**
    * Returns bindings for the {@code @Provides} methods of {@code module}. The
    * returned bindings must be linked before they can be used to inject values.
    */
-  public abstract void getBindings(Map<String, Binding<?>> map);
+  public void getBindings(@SuppressWarnings("unused") Map<String, Binding<?>> map) {
+    // no-op;
+  }
 
   /**
    * Returns a new instance of the module class created using a no-args
    * constructor. Only used when a manually-constructed module is not supplied.
    */
-  protected abstract T newModule();
+  protected T newModule() {
+    throw new UnsupportedOperationException("No no-args constructor on " + getClass().getName());
+  }
 
   public T getModule() {
     return module;
   }
-
-
 }
